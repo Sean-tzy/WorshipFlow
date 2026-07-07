@@ -1,0 +1,56 @@
+openapi: 3.1.0
+info:
+  title: WorshipFlow AI API
+  version: 1.0.0
+servers:
+  - url: ${VITE_API_URL}
+paths:
+  /v1/auth/login:
+    post:
+      summary: Login with email and password
+      tags: [Auth]
+      responses:
+        "200":
+          description: Sanctum token and user profile
+  /v1/songs/import-youtube:
+    post:
+      summary: Import YouTube metadata for a song
+      tags: [Songs]
+      security:
+        - sanctum: []
+      responses:
+        "201":
+          description: Imported song
+  /v1/presentations:
+    get:
+      summary: List presentations with pagination, filtering, sorting, and search
+      tags: [Presentations]
+      security:
+        - sanctum: []
+      responses:
+        "200":
+          description: Paginated presentations
+  /v1/bible/search:
+    get:
+      summary: Search Bible references or keywords
+      tags: [Bible]
+      security:
+        - sanctum: []
+      responses:
+        "200":
+          description: Bible search results
+  /v1/ai/lyrics/split:
+    post:
+      summary: Split raw lyrics into worship sections
+      tags: [AI]
+      security:
+        - sanctum: []
+      responses:
+        "200":
+          description: Structured lyric sections
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
