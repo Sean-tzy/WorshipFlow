@@ -7,6 +7,14 @@ import { Button } from "../components/button";
 import { MagneticCard, Page } from "../components/motion";
 import { backgrounds as baseBackgrounds } from "../data/workspace";
 import { api } from "../lib/api";
+import {
+  createBackgroundAsset,
+  createPlannerItem,
+  getStoreSnapshot,
+  normalizeSongPresentation,
+  savePlannerService,
+  upsertSongPresentation,
+} from "../lib/worshipflow-store";
 
 type SongMeta = {
   title: string;
@@ -142,24 +150,44 @@ export function BuilderPage() {
     }
   };
 
-  const saveAndPresent = async () => {
+  const ensureLyricsReady = () => {
     if (!sections.some((section) => section.lyrics.trim())) {
       toast.error("Paste or type lyrics before presenting");
       setStep(0);
-      return;
+      return false;
     }
 
-    const response = await api<{ id: string }>("/presentations", {
-      method: "POST",
-      body: JSON.stringify({
-        title: songMeta.title,
-        artist: songMeta.artist,
-        sections,
-        background: selectedBackground.name,
-        typography,
-      }),
-    });
-    toast.success(`Saved ${response.data.id}`);
+    return true;
+  };
+
+  const saveToPlanner = () => {
+    if (!ensureLyricsReady()) return null;
+
+    const savedSong = saveBuilderSongToPlanner(songMeta, sections, selectedBackground, typography);
+    toast.success(`${savedSong.title} added to Planner`);
+    return savedSong;
+  };
+
+  const saveAndPresent = async () => {
+    if (!ensureLyricsReady()) return;
+
+    try {
+      const response = await api<{ id: string }>("/presentations", {
+        method: "POST",
+        body: JSON.stringify({
+          title: songMeta.title,
+          artist: songMeta.artist,
+          sections,
+          background: selectedBackground.name,
+          typography,
+        }),
+      });
+      toast.success(`Saved ${response.data.id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Saved locally; API save failed");
+    }
+
+    saveToPlanner();
     setPresenting(true);
   };
 
@@ -262,6 +290,7 @@ export function BuilderPage() {
             sections={sections}
             selectedBackground={selectedBackground}
             typography={typography}
+            saveToPlanner={saveToPlanner}
             saveAndPresent={saveAndPresent}
             reorderSections={reorderSections}
           />
@@ -550,6 +579,7 @@ function PreviewStep({
   sections,
   selectedBackground,
   typography,
+  saveToPlanner,
   saveAndPresent,
   reorderSections,
 }: {
@@ -557,6 +587,7 @@ function PreviewStep({
   sections: LyricSection[];
   selectedBackground: Background;
   typography: Typography;
+  saveToPlanner: () => void;
   saveAndPresent: () => void;
   reorderSections: (fromIndex: number, toIndex: number) => void;
 }) {
@@ -600,6 +631,9 @@ function PreviewStep({
             ))}
           </div>
         </MagneticCard>
+        <Button variant="secondary" className="w-full" onClick={saveToPlanner}>
+          <Check className="h-4 w-4" /> Save to Planner
+        </Button>
         <Button className="w-full" onClick={saveAndPresent}>
           <Maximize2 className="h-4 w-4" /> Save and present fullscreen
         </Button>
@@ -730,6 +764,66 @@ function FullscreenPresentation({
     </motion.div>,
     document.body,
   );
+}
+
+function saveBuilderSongToPlanner(songMeta: SongMeta, sections: LyricSection[], background: Background, typography: Typography) {
+  const backgroundAsset = createBackgroundAsset({
+    name: background.name,
+    kind: background.videoUrl ? "library" : "gradient",
+    value: background.videoUrl ?? background.color,
+    label: background.tag,
+    preview: background.videoUrl,
+  });
+  const now = new Date().toISOString();
+  const title = songMeta.title.trim() || "Untitled Worship Song";
+  const song = normalizeSongPresentation({
+    title,
+    artist: songMeta.artist.trim() || "Unknown Artist",
+    thumbnail: songMeta.thumbnail,
+    slides: sections.map((section) => ({
+      id: createBuilderId("slide"),
+      label: section.label,
+      lyrics: section.lyrics,
+      background: backgroundAsset,
+    })),
+    sections: sections.map((section) => section.label),
+    backgrounds: [backgroundAsset],
+    typographySettings: {
+      fontSize: typography.fontSize,
+      weight: typography.weight,
+      color: "#ffffff",
+      alignment: "center",
+      glow: typography.glow,
+      overlay: typography.overlay,
+    },
+    transitions: "Fade",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  upsertSongPresentation(song);
+
+  const store = getStoreSnapshot();
+  const planner = store.plannerServices[0];
+  if (planner) {
+    const plannerSong = createPlannerItem(planner.id, "song", {
+      title: song.title,
+      songPresentationId: song.id,
+      background: backgroundAsset,
+      durationSeconds: Math.max(30, song.slides.filter((slide) => slide.lyrics.trim()).length * 20),
+    });
+
+    savePlannerService({
+      ...planner,
+      items: [...planner.items, plannerSong],
+    });
+  }
+
+  return song;
+}
+
+function createBuilderId(prefix: string) {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto ? `${prefix}_${crypto.randomUUID()}` : `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
 function mergeBackgrounds(current: Background[], incoming: Background[]) {

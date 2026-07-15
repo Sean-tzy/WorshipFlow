@@ -16,7 +16,7 @@ $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
 $method = $_SERVER['REQUEST_METHOD'];
 $input = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
 
-if (str_starts_with($path, '/api/') && !str_starts_with($path, '/api/v1/')) {
+if (str_starts_with($path, '/api/') && $path !== '/api/v1' && !str_starts_with($path, '/api/v1/')) {
     $path = '/api/v1' . substr($path, 4);
 }
 

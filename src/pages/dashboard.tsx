@@ -75,7 +75,7 @@ export function DashboardPage() {
               </div>
             ))}
           </div>
-          <Button className="mt-5 w-full" onClick={() => navigate("/app/live")}>
+          <Button className="mt-5 w-full" onClick={() => navigate("/app/planner")}>
             <Play className="h-4 w-4" /> Start rehearsal
           </Button>
         </MagneticCard>

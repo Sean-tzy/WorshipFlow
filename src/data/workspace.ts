@@ -13,14 +13,12 @@ import {
   Palette,
   Settings,
   Sparkles,
-  Tv,
   Wand2,
 } from "lucide-react";
 
 export const navItems = [
   { label: "Dashboard", href: "/app", icon: Home },
   { label: "Builder", href: "/app/builder", icon: Wand2 },
-  { label: "Live", href: "/app/live", icon: Tv },
   { label: "Bible", href: "/app/bible", icon: BookOpen },
   { label: "Planner", href: "/app/planner", icon: CalendarDays },
   { label: "Media", href: "/app/media", icon: FolderOpen },

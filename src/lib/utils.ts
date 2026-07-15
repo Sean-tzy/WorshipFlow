@@ -5,4 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1";
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+
+export const API_URL = (configuredApiUrl || "/api/v1").replace(/\/$/, "");
